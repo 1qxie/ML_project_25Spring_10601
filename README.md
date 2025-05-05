@@ -1,7 +1,3 @@
-根据你提供的内容，我已将其重新组织、修正格式，并去除 emoji，以符合专业的 GitHub `README.md` 风格：
-
----
-
 # Machine Learning Project: Predicting Project Funding Success
 
 ## Overview
@@ -80,6 +76,3 @@ This project uses the following Python libraries and tools:
 * `xgboost`: `XGBClassifier`
 * `sklearn.metrics`: `classification_report`, `confusion_matrix`, `roc_curve`, `precision_recall_curve`, `auc`
 
----
-
-如果你希望我生成并导出 `.md` 文件供你直接上传到 GitHub，请告诉我。是否也需要我帮你写 `.gitignore` 或 `requirements.txt` 文件？
