@@ -181,3 +181,74 @@ def evaluate_model(model, X_test, y_test, model_name):
 # Evaluation
 evaluate_model(grid_search_xgb.best_estimator_, X_test, y_test, 'XGBoost')
 evaluate_model(grid_search_rf.best_estimator_, X_test, y_test, 'RandomForest')
+
+
+# Generate prediction outputs and visualization (XGBoost only)
+def generate_outputs_and_visuals(model, X_test, y_test, original_test_df):
+    y_proba = model.predict_proba(X_test)[:, 1]
+    original_test_df = original_test_df.copy()
+    original_test_df['pred_prob'] = y_proba
+
+    # Save top prediction results
+    output_cols = [
+        'project_id', 'price_per_student', 'students_reached',
+        'primary_focus_subject', 'poverty_level', 'pred_prob'
+    ]
+    original_test_df[output_cols].sort_values(by='pred_prob', ascending=False).to_csv(
+        'xgb_test_prediction.csv', index=False
+    )
+
+    # Plot histogram of prediction scores
+    plt.figure(figsize=(8, 5))
+    sns.histplot(y_proba, bins=25, color='skyblue', edgecolor='black')
+    plt.axvline(0.8, color='red', linestyle='--', label='High Confidence Threshold (0.8)')
+    plt.title('Prediction Score Distribution (Funded Probability)')
+    plt.xlabel('Predicted Probability')
+    plt.ylabel('Number of Projects')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Show top N high-confidence predictions
+    top_projects = original_test_df.sort_values(by='pred_prob', ascending=False).head(10)
+    print("\nTop 10 High-Confidence Projects (Predicted Funded):")
+    print(top_projects[output_cols])
+
+    # Calibration Curve
+    from sklearn.calibration import calibration_curve
+    prob_true, prob_pred = calibration_curve(y_test, y_proba, n_bins=10)
+    plt.figure(figsize=(6, 6))
+    plt.plot(prob_pred, prob_true, marker='o', label='Calibration Curve')
+    plt.plot([0, 1], [0, 1], 'k--', label='Perfectly Calibrated')
+    plt.title('Calibration Curve')
+    plt.xlabel('Predicted Probability')
+    plt.ylabel('True Frequency')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+# Run on XGBoost
+original_test_df = test.copy()
+original_test_df = original_test_df.reset_index(drop=True)
+original_test_df['project_id'] = ['P{}'.format(i) for i in range(len(original_test_df))]
+generate_outputs_and_visuals(grid_search_xgb.best_estimator_, X_test, y_test, original_test_df)
+
+def precision_at_k(y_true, y_scores, k):
+    """
+    Compute Precision@K: Among top K predicted scores, how many are truly positive.
+    """
+    k = min(k, len(y_scores))
+    sorted_indices = np.argsort(y_scores)[::-1][:k]
+    top_k_true = np.array(y_true)[sorted_indices]
+    precision = np.sum(top_k_true) / k
+    return precision
+
+# Run Precision@K
+y_proba = grid_search_xgb.best_estimator_.predict_proba(X_test)[:, 1]
+precision_50 = precision_at_k(y_test, y_proba, 50)
+precision_100 = precision_at_k(y_test, y_proba, 100)
+
+print(f"Precision@50: {precision_50:.2f}")
+print(f"Precision@100: {precision_100:.2f}")
